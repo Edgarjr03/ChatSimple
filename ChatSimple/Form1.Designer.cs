@@ -37,7 +37,7 @@
             label3 = new Label();
             label4 = new Label();
             txt_Mensaje = new TextBox();
-            button1 = new Button();
+            btn_enviar = new Button();
             SuspendLayout();
             // 
             // label1
@@ -115,22 +115,22 @@
             txt_Mensaje.Size = new Size(454, 31);
             txt_Mensaje.TabIndex = 8;
             // 
-            // button1
+            // btn_enviar
             // 
-            button1.Location = new Point(472, 386);
-            button1.Name = "button1";
-            button1.Size = new Size(112, 34);
-            button1.TabIndex = 9;
-            button1.Text = "Enviar";
-            button1.UseVisualStyleBackColor = true;
-            button1.Click += button1_Click;
+            btn_enviar.Location = new Point(472, 386);
+            btn_enviar.Name = "btn_enviar";
+            btn_enviar.Size = new Size(112, 34);
+            btn_enviar.TabIndex = 9;
+            btn_enviar.Text = "Enviar";
+            btn_enviar.UseVisualStyleBackColor = true;
+            btn_enviar.Click += btn_enviar_Click;
             // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(595, 450);
-            Controls.Add(button1);
+            Controls.Add(btn_enviar);
             Controls.Add(txt_Mensaje);
             Controls.Add(label4);
             Controls.Add(label3);
@@ -157,6 +157,6 @@
         private Label label3;
         private Label label4;
         private TextBox txt_Mensaje;
-        private Button button1;
+        private Button btn_enviar;
     }
 }
