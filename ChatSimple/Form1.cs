@@ -9,6 +9,7 @@ namespace ChatSimple
         private TcpClient cliente;
         private StreamReader reader;
         private StreamWriter writer;
+        private string miNombre = "Anónimo";
 
         private List<StreamWriter> clientesConectados = new List<StreamWriter>();
 
@@ -29,14 +30,22 @@ namespace ChatSimple
             {
                 if (respuesta == DialogResult.Yes)
                 {
+                    using (Nombre formNombre = new Nombre())
+                    {
+                        if (formNombre.ShowDialog() == DialogResult.OK)
+                            miNombre = formNombre.NombreElegido;
+                        else
+                            return;
+                    }
                     esServidor |= true;
                     int puerto = int.Parse(txt_Puerto.Text);
                     TcpListener listener = new TcpListener(IPAddress.Any, puerto);
                     listener.Start();
 
 
-
+                    
                     rtx_mensajes.AppendText("Servidor iniciado en la direccion y puerto:  " + getIP() + ":" + puerto + "...\r\n");
+                    
 
 
                     // Bucle infinito: El servidor nunca deja de aceptar clientes
@@ -51,20 +60,31 @@ namespace ChatSimple
                 }
                 else
                 {
+                    using (Nombre formNombre = new Nombre())
+                    {
+                        if (formNombre.ShowDialog() == DialogResult.OK)
+                            miNombre = formNombre.NombreElegido;
+                        else
+                            return;
+                    }
+
                     string ip = txt_IP.Text;
                     int port = int.Parse(txt_Puerto.Text);
 
                     cliente = new TcpClient();
                     rtx_mensajes.AppendText("Conectando al servidor...\r\n");
-
+                    
                     await cliente.ConnectAsync(ip, port);
                     rtx_mensajes.AppendText("¡Conectado a la sala!\r\n");
+                    
 
 
 
                     NetworkStream stream = cliente.GetStream();
                     reader = new StreamReader(stream);
                     writer = new StreamWriter(stream) { AutoFlush = true };
+
+                      await writer.WriteLineAsync($"NOMBRE:{miNombre}");
 
                     _ = RecibirMensajes();
 
@@ -84,43 +104,53 @@ namespace ChatSimple
             StreamReader clientReader = new StreamReader(stream);
             StreamWriter clientWriter = new StreamWriter(stream) { AutoFlush = true };
 
-            // Añadimos el nuevo cliente a nuestra lista segura
+            string nombreCliente = "Desconocido"; // nombre provisional
+
             lock (lockClientes) { clientesConectados.Add(clientWriter); }
 
             try
             {
                 while (cliente.Connected)
                 {
-                    // Escucha los mensajes de ESTE cliente en particular
                     string mensajeRecibido = await clientReader.ReadLineAsync();
 
-                    if (mensajeRecibido != null)
-                    {
-                        // Mostrar en la pantalla del servidor
-                        rtx_mensajes.Invoke((MethodInvoker)delegate {
-                            rtx_mensajes.AppendText("Cliente: " + mensajeRecibido + "\r\n");
-                        });
+                    if (mensajeRecibido == null) break;
 
-                        // Reenviar a todos los demás clientes de la sala
-                        DifundirMensaje("Alguien dice: " + mensajeRecibido);
+                    // *** Si el cliente manda su nombre al conectarse ***
+                    if (mensajeRecibido.StartsWith("NOMBRE:"))
+                    {
+                        nombreCliente = mensajeRecibido.Substring(7).Trim();
+
+                        string anuncio = $"*** {nombreCliente} se unió a la sala ***";
+                        rtx_mensajes.Invoke((MethodInvoker)delegate {
+                            rtx_mensajes.AppendText(anuncio + "\r\n");
+                        });
+                        DifundirMensaje(anuncio);
                     }
                     else
                     {
-                        break; // Si recibe null, el cliente se desconectó
+                        // Mensaje normal: usamos el nombre que ya guardamos
+                        string mensajeFormateado = $"{nombreCliente}: {mensajeRecibido}";
+
+                        rtx_mensajes.Invoke((MethodInvoker)delegate {
+                            rtx_mensajes.AppendText(mensajeFormateado + "\r\n");
+                        });
+
+                        DifundirMensaje(mensajeFormateado);
                     }
                 }
             }
             catch (Exception)
             {
-                MessageBox.Show("Error con un cliente, posiblemente se desconectó o falló.");
+                // cliente desconectado inesperadamente
             }
             finally
             {
-                // Si el cliente se desconecta, lo quitamos de la lista
                 lock (lockClientes) { clientesConectados.Remove(clientWriter); }
                 rtx_mensajes.Invoke((MethodInvoker)delegate {
-                    rtx_mensajes.AppendText("Un cliente abandonó la sala.\r\n");
+                    rtx_mensajes.AppendText($"*** {nombreCliente} abandonó la sala ***\r\n");
                 });
+                DifundirMensaje($"*** {nombreCliente} abandonó la sala ***");
                 cliente.Close();
             }
         }
@@ -203,15 +233,15 @@ namespace ChatSimple
             {
                 if (esServidor)
                 {
-                    // Si soy el servidor, muestro mi mensaje y lo difundo a todos
-                    rtx_mensajes.AppendText("Server Admin: " + mensaje + "\r\n");
-                    DifundirMensaje("Server Admin: " + mensaje);
+                    string mensajeFormateado = $"{miNombre}: {mensaje}";
+                    rtx_mensajes.AppendText(mensajeFormateado + "\r\n");
+                    DifundirMensaje(mensajeFormateado);
                 }
                 else if (cliente != null && cliente.Connected)
                 {
-                    // Si soy cliente, le mando mi mensaje al servidor (y él se encargará de repartirlo)
+                    // Mandamos solo el texto; el servidor le pone el nombre
                     await writer.WriteLineAsync(mensaje);
-                    rtx_mensajes.AppendText("Tú: " + mensaje + "\r\n");
+                    
                 }
 
                 txt_Mensaje.Clear();
